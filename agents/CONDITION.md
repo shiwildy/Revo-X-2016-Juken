@@ -13,7 +13,7 @@ Terakhir diperbarui: `2026-05-10`.
 
 - Throttle body: `22 mm` bawaan
 - TPS: racing (sudah dikalibrasi ulang di Juken, 0% tutup dan 100% WOT match)
-- Filter: standar
+- Filter: Daytona stock-replacement (bahan cotton-gauze, dimensi + flow match stock AHM)
 
 ## Fuel and Ignition Related Setup
 
