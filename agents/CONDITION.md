@@ -39,6 +39,22 @@ Terakhir diperbarui: `2026-05-10`.
 - Semua penyesuaian tuning ke depan hanya boleh dilakukan pada `FUEL CORRECTION`, `INJECTOR TIMING`, `IGNITION TIMING`, dan parameter di `juken.txt`.
 - `BASEMAP` harus dianggap immutable kecuali ada instruksi eksplisit dari owner.
 
+## Juken Technical Constraints
+
+ECU Juken 5++ Dualband memiliki batasan teknis yang HARUS dipatuhi saat menulis map. Melanggar constraint ini menyebabkan flash error.
+
+### `IGNITION TIMING` value granularity
+
+- Nilai ignition timing **HANYA BOLEH kelipatan 0.5°**.
+- Valid: `11.0`, `11.5`, `12.0`, `12.5`, `23.0`, `23.5`, dst.
+- INVALID: `11.6`, `11.7`, `12.3`, `23.4`, dst — akan error saat upload ke ECU.
+- Semua proses interpolasi, smoothing, atau aritmatika otomatis WAJIB snap output ke grid 0.5° sebelum ditulis.
+- Verifikasi: `(value × 2) == int(value × 2)` harus true untuk setiap cell ignition.
+
+### Other axis contracts
+
+Lihat `REFERENCE_AXIS.md` untuk TPS/RPM axis yang locked.
+
 ### Exception: Redline Duty-Cap (authorized 2026-05-10)
 
 - Zona `RPM >= 7750` × `TPS >= 65%` di BASEMAP diperbolehkan di-cap untuk menjaga injector duty cycle tetap di bawah `70%` (mengikuti target di `REFERENCE_DETAIL.md` section 4).
