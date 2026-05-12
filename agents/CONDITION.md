@@ -17,7 +17,7 @@ Terakhir diperbarui: `2026-05-10`.
 
 ## Fuel and Ignition Related Setup
 
-- Injector: CBR150 `8 hole` (upgrade dari KZR/Vario 125, debit lebih besar dan atomisasi lebih halus)
+- Injector: CBR150R 8-hole genuine Honda (part `16450-K15-601`, model 2019-2021, flow `~215 cc/min` @ 294 kPa, atomisasi halus)
 - Bahan bakar harian: RON 92 atau RON 95 (map harus aman di RON 92)
 - Busi terpasang saat ini: `CPR7EA` iridium
 - Gap busi: `0.80 - 0.90 mm`
@@ -38,6 +38,25 @@ Terakhir diperbarui: `2026-05-10`.
 - `BASEMAP` di `core1` dan `core2` sudah disusun berbasis standar ECU dan sudah terverifikasi empiris. Percobaan rombak BASEMAP di masa lalu membuat motor mati saat di-gas.
 - Semua penyesuaian tuning ke depan hanya boleh dilakukan pada `FUEL CORRECTION`, `INJECTOR TIMING`, `IGNITION TIMING`, dan parameter di `juken.txt`.
 - `BASEMAP` harus dianggap immutable kecuali ada instruksi eksplisit dari owner.
+
+
+## Empirical Calibration Findings
+
+### K15-601 vs KZR real-world comparison (2026-05-12)
+
+- Saat pertama kali flash map `10-05-2026/` dengan injector K15-601 terpasang: motor banjir bensin, idle mati-mati, brebet parah.
+- User harus set `FC -20 flat` di core1 supaya motor bisa langsam.
+- Empirical finding: **K15-601 deliver net fuel ~30% lebih banyak** dari KZR equivalent, bukan 10-15% seperti asumsi awal.
+- Root cause breakdown:
+  1. Physical flow rate: `+23%` (K15 215 cc/min vs KZR ~175 cc/min @ 294 kPa)
+  2. Atomization efficiency: `+5-8%` (8-hole genuine Honda spray pattern, fuel lebih banyak yang benar-benar terbakar)
+  3. Compounded effect: `~30% more effective fuel` per ms pulse
+
+### Correction method untuk future tuning
+
+- Semua FC map harus di-scale `× 0.78` lalu offset `-22` relatif ke map KZR baseline.
+- Formula: `FC_new = round(FC_kzr × 0.78) - 22`
+- Hasil akhir FC akan negatif (antara `-10` sampai `-22`), ini normal untuk K15-601.
 
 ## Juken Technical Constraints
 
