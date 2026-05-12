@@ -1,90 +1,116 @@
 # Current Vehicle Condition
 
 Dokumen ini mencatat konfigurasi motor aktual yang menjadi konteks tuning.
-Terakhir diperbarui: `2026-05-10`.
+Terakhir diperbarui: `2026-05-12`.
 
 ## Platform
 
-- Model basis: Honda Revo FI 110
+- Model basis: Honda Revo FI / Revo X 2016
 - ECU: Juken 5++ Dualband (fully configurable, dual core map)
-- Engine internal: standar (piston, klep, noken, kopling belum diubah)
+- Engine internal: stock (piston, klep, noken, kopling, head, block belum diubah)
 
 ## Intake and Throttle
 
 - Throttle body: `22 mm` bawaan
-- TPS: racing (sudah dikalibrasi ulang di Juken, 0% tutup dan 100% WOT match)
-- Filter: Daytona regular (paper kertas hijau, bentuk + flow sama dengan stock AHM, kualitas kertas lebih baik dari AHM)
+- TPS: racing (terkalibrasi di Juken, 0% tutup dan 100% WOT match)
+- Filter: Daytona regular (paper kertas premium, flow match stock AHM)
 
-## Fuel and Ignition Related Setup
+## Fuel and Ignition Setup
 
-- Injector: CBR150R 8-hole genuine Honda (part `16450-K15-601`, model 2019-2021, flow `~215 cc/min` @ 294 kPa, atomisasi halus)
-- Bahan bakar harian: RON 92 atau RON 95 (map harus aman di RON 92)
-- Busi terpasang saat ini: `CPR7EA` iridium
-- Gap busi: `0.80 - 0.90 mm`
+- Injector: CBR150R 8-hole genuine Honda (part `16450-K15-601`, model 2019-2021,
+  flow `~215 cc/min` @ 294 kPa, atomisasi halus 8-hole)
+- Fuel pressure: `263-316 kPa` (stock)
+- Busi terpasang: `CPR7EA` iridium
+- Gap busi: `0.80-0.90 mm`
+- Dwell: `3.5 ms` flat (Juken default untuk stock coil)
+
+## Fuel Selection
+
+- `core1` (harian halus): RON 92 atau RON 95 safe
+- `core2` (tarik agresif): RON 95-98 (IGN advance lebih agresif butuh fuel premium)
 
 ## Lubrication and Electrical
 
 - Oli: Mobil Delvac Modern 15W-40
-- Kelistrikan: DC fullwave (suplai listrik lebih stabil)
-
-## Observed Baseline Symptoms (Before Re-tune)
-
-- Cruise `2000 - 4000 rpm` bukaan kecil: aman, halus.
-- Snap WOT di mid RPM (`4000 - 6500 rpm`): tarikan terasa kosong/bog sesaat.
-- Indikasi: zona mid RPM high TPS cenderung over-rich dengan map `20-04-2026`.
-
-## Protected Tables (DO NOT MODIFY)
-
-- `BASEMAP` di `core1` dan `core2` sudah disusun berbasis standar ECU dan sudah terverifikasi empiris. Percobaan rombak BASEMAP di masa lalu membuat motor mati saat di-gas.
-- Semua penyesuaian tuning ke depan hanya boleh dilakukan pada `FUEL CORRECTION`, `INJECTOR TIMING`, `IGNITION TIMING`, dan parameter di `juken.txt`.
-- `BASEMAP` harus dianggap immutable kecuali ada instruksi eksplisit dari owner.
-
+- Kelistrikan: DC fullwave (suplai listrik stabil, support coil charge kuat)
 
 ## Empirical Calibration Findings
 
-### K15-601 vs KZR real-world comparison (2026-05-12)
+### K15-601 vs KZR real-world (2026-05-12)
 
-- Saat pertama kali flash map `10-05-2026/` dengan injector K15-601 terpasang: motor banjir bensin, idle mati-mati, brebet parah.
-- User harus set `FC -20 flat` di core1 supaya motor bisa langsam.
-- Empirical finding: **K15-601 deliver net fuel ~30% lebih banyak** dari KZR equivalent, bukan 10-15% seperti asumsi awal.
-- Root cause breakdown:
-  1. Physical flow rate: `+23%` (K15 215 cc/min vs KZR ~175 cc/min @ 294 kPa)
-  2. Atomization efficiency: `+5-8%` (8-hole genuine Honda spray pattern, fuel lebih banyak yang benar-benar terbakar)
-  3. Compounded effect: `~30% more effective fuel` per ms pulse
+Flash pertama map `10-05-2026` (designed untuk asumsi K15 +10-15% flow) dengan
+injector K15-601 terpasang: motor banjir bensin, idle mati-mati, brebet.
 
-### Correction method untuk future tuning
+User nyoba trim FC global untuk kalibrasi:
 
-- Semua FC map harus di-scale `× 0.78` lalu offset `-22` relatif ke map KZR baseline.
-- Formula: `FC_new = round(FC_kzr × 0.78) - 22`
-- Hasil akhir FC akan negatif (antara `-10` sampai `-22`), ini normal untuk K15-601.
+| Trim FC | Avg overfuel (simulated) | Gejala user |
+|---------|--------------------------|-------------|
+| `+0`    | `+25.3%`                 | Banjir total, brebet, idle mati |
+| `-10`   | `+13.5%`                 | Masih rich parah |
+| `-15`   | `+7.6%`                  | Lebih oke tapi masih bau bensin banget |
+| `-20`   | `+1.7%`                  | Idle stable langsam, sedikit bau bensin |
+| `-22`   | `~0%`                    | Target (no bau bensin) |
+
+**Empirical finding**: K15-601 deliver net fuel `~30% lebih banyak` dari KZR
+equivalent (bukan 10-15% seperti asumsi awal).
+
+Root cause:
+1. Physical flow rate: `+23%` (K15 215 cc/min vs KZR ~175 cc/min @ 294 kPa)
+2. Atomization efficiency: `+5-8%` (8-hole genuine Honda spray pattern)
+3. Compounded: `~28-30% effective fuel` per ms pulse
+
+### Busi Black Fouling — Dual Root Cause
+
+User observations sebelum map `12-05-2026`:
+- Map `20-04-2026` KZR: busi hitam total (over-fuel + IGN retard)
+- Map `10-05-2026` K15 as-is: banjir total (over-fuel +25%)
+
+Root cause analysis:
+1. **Fuel over-richness**: FC `+6..+13` di 20-04 dengan K15 → AFR 11-13 (rich), unburnt condense di busi
+2. **IGN under-advance**: 20-04 cruise 13°, mid-load 20° terlalu retard untuk compression 9.3:1,
+   burn lambat, mixture masih combusting saat exhaust buka → wet fouling
+
+## Correction Strategy (applied in `12-05-2026`)
+
+### Fuel — BASEMAP shift
+```
+BASEMAP_new = BASEMAP_20-04 × 0.78        # absorb K15 flow comp
+FC_new      = zone-based [0..5] core1 / [0..7] core2
+target_ms   = BASEMAP_20-04 × (1 + FC_20-04/100) × 0.78    # preserve AFR shape
+```
+
+### Ignition — zone advance dari proven floor
+```
+IGN_new = min( IGN_20-04 + zone_bonus(tps), zone_cap )
+
+core1 bonus:  +4° lean / +3° mid / +2° power / +1.5° WOT   (cap 26° RON 92/95)
+core2 bonus:  +3° lean / +2.5° mid / +1.5° power / +1° WOT (cap 28° RON 95-98)
+```
+
+Invariants:
+- IGN never below 20-04 proven floor
+- core2 BM ≥ core1 BM everywhere
+- core2 IGN ≥ core1 IGN everywhere
 
 ## Juken Technical Constraints
 
-ECU Juken 5++ Dualband memiliki batasan teknis yang HARUS dipatuhi saat menulis map. Melanggar constraint ini menyebabkan flash error.
+### Ignition value granularity
+- Nilai IGN **HANYA kelipatan 0.5°**. Valid: `11.0, 11.5, 12.0, ...`
+- Semua proses aritmatika/interpolasi WAJIB snap ke grid 0.5° sebelum tulis
+- Verifikasi: `(value × 2) == int(value × 2)` harus true
 
-### `IGNITION TIMING` value granularity
+### Dwell
+- Flat `3.5 ms` untuk stock coil Revo (jangan diubah tanpa ganti coil)
 
-- Nilai ignition timing **HANYA BOLEH kelipatan 0.5°**.
-- Valid: `11.0`, `11.5`, `12.0`, `12.5`, `23.0`, `23.5`, dst.
-- INVALID: `11.6`, `11.7`, `12.3`, `23.4`, dst — akan error saat upload ke ECU.
-- Semua proses interpolasi, smoothing, atau aritmatika otomatis WAJIB snap output ke grid 0.5° sebelum ditulis.
-- Verifikasi: `(value × 2) == int(value × 2)` harus true untuk setiap cell ignition.
+### Duty cycle target
+- Injector WOT duty `<= 70%` absolute max
+- Preferred working envelope `<= 65-67%` untuk safety margin
 
-### Other axis contracts
+## Current Active Map
 
-Lihat `REFERENCE_AXIS.md` untuk TPS/RPM axis yang locked.
+- Folder: `12-05-2026/`
+- `core1.txt`: harian halus, FC 0..5, duty max 66.59%
+- `core2.txt`: tarik agresif, FC 0..7, duty max 67.24%
+- `juken.txt`: WARMUP/STARTER × 0.80, JET FUEL 180 pulse 1s
 
-### Exception: Redline Duty-Cap (authorized 2026-05-10)
-
-- Zona `RPM >= 7750` × `TPS >= 65%` di BASEMAP diperbolehkan di-cap untuk menjaga injector duty cycle tetap di bawah `70%` (mengikuti target di `REFERENCE_DETAIL.md` section 4).
-- Cell yang di-cap hanya boleh diturunkan (nilai asli tetap menjadi batas atas), tidak boleh dinaikkan.
-- Zona di luar batas tersebut (operasional normal) tetap immutable.
-
-## Tuning Implication
-
-1. Injector CBR150 `8 hole` flow ~`10-15%` lebih besar dari KZR. Semua map fuel perlu trim proporsional agar tidak over-rich global.
-2. Atomisasi `8 hole` lebih halus, burn lebih cepat, jadi advance ignition tidak perlu seagresif map lama. Sisakan margin untuk RON 92.
-3. Fokus patch aktif ada di zona mid RPM (`4000 - 6500 rpm`) dengan TPS `>= 50%`, karena di sinilah gejala bog muncul.
-4. Low RPM cruise sudah dilaporkan aman, jadi zona `TPS <= 40%` dan `RPM <= 3500` dijaga tidak diubah drastis.
-5. Tetap hindari AFR terlalu rich di low RPM untuk mencegah fuel dilution ke oli (lihat `REFERENCE_DETAIL.md`).
-6. Tetap pertahankan dua profil: `core1` halus untuk harian, `core2` responsif untuk tarik, tetapi keduanya aman di RON 92.
+Detail audit + sample cells ada di `12-05-2026/README.md`.
